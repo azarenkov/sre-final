@@ -79,17 +79,27 @@ jobs:
     needs: docker-publish
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    environment: production
+    env:
+      KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
     steps:
+      - name: Skip when no cluster configured
+        if: env.KUBECONFIG_B64 == ''
+        run: |
+          echo "KUBECONFIG_B64 secret not set — running in demo mode, skipping deploy."
+          echo "Image that would be deployed: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${GITHUB_SHA::7}"
+
       - uses: actions/checkout@v4
+        if: env.KUBECONFIG_B64 != ''
 
       - name: Configure kubectl
+        if: env.KUBECONFIG_B64 != ''
         run: |
           mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > $HOME/.kube/config
+          echo "$KUBECONFIG_B64" | base64 -d > $HOME/.kube/config
           kubectl config view --minify
 
       - name: Roll out new image
+        if: env.KUBECONFIG_B64 != ''
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${GITHUB_SHA::7}"
           echo "Deploying $IMAGE"
@@ -97,6 +107,7 @@ jobs:
           kubectl -n shop rollout status deployment/shop-api --timeout=2m
 
       - name: Smoke test
+        if: env.KUBECONFIG_B64 != ''
         run: |
           kubectl -n shop wait --for=condition=Available --timeout=120s deployment/shop-api
           kubectl -n shop get deploy,pod,hpa
