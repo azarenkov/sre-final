@@ -1,0 +1,22 @@
+.DS_Store
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+
+# Go
+app/shop-api
+*.exe
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Locust
+.locust/
+*.csv
