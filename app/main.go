@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+
 var (
 	httpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
