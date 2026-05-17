@@ -1,0 +1,45 @@
+groups:
+  - name: shop-api-slo
+    interval: 30s
+    rules:
+      - record: shop_api:request_rate5m
+        expr: sum(rate(shop_api_http_requests_total[5m])) by (route)
+
+      - record: shop_api:error_rate5m
+        expr: |
+          sum(rate(shop_api_http_requests_total{code=~"5.."}[5m]))
+          / clamp_min(sum(rate(shop_api_http_requests_total[5m])), 1e-9)
+
+      - record: shop_api:latency_p95_5m
+        expr: histogram_quantile(0.95,
+                sum(rate(shop_api_http_request_duration_seconds_bucket[5m])) by (le, route))
+
+      - alert: ShopApiHighErrorRate
+        expr: shop_api:error_rate5m > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "shop-api 5xx rate > 5%"
+          description: "Error rate {{ $value | humanizePercentage }} sustained over 2m, SLO is 99.5% availability."
+
+      - alert: ShopApiHighLatency
+        expr: histogram_quantile(0.95,
+                sum(rate(shop_api_http_request_duration_seconds_bucket{route="/work"}[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "shop-api p95 latency on /work > 1s"
+          description: "p95 = {{ $value }}s for /work over 5m, SLO target is < 800ms."
+
+      - alert: ShopApiPodCrashLoop
+        expr: rate(kube_pod_container_status_restarts_total{namespace="shop"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "shop-api pod restart loop detected"
+          description: "{{ $labels.pod }} has restarted in the last 10 minutes."

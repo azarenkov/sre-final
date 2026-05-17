@@ -1,0 +1,28 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ["alertname", "slo"]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 4h
+  routes:
+    - matchers: [severity = "critical"]
+      receiver: oncall
+      continue: true
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: "http://shop-api.shop.svc.cluster.local:5000/healthz"
+        send_resolved: true
+  - name: oncall
+    webhook_configs:
+      - url: "http://shop-api.shop.svc.cluster.local:5000/healthz"
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers: [severity = "critical"]
+    target_matchers: [severity = "warning"]
+    equal: ["alertname"]
